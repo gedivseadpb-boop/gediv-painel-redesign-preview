@@ -727,6 +727,7 @@ main {
   gap: 6px;
   margin-bottom: 4px;
 }
+.exec-kpi-top .metric-help { position: static; flex-shrink: 0; }
 .exec-kpi-tag {
   font-size: 10px;
   font-weight: 750;
@@ -790,7 +791,8 @@ main {
   align-items: center;
   gap: 7px;
   color: var(--ink);
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
 }
 .pending-dot {
   width: 8px; height: 8px;
@@ -851,6 +853,7 @@ main {
 .chart-grid > .panel + .panel, .charts-column > .panel + .panel { margin-top: 0; }
 .panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
   justify-content: space-between;
@@ -860,7 +863,7 @@ main {
 }
 .panel-head p { color: var(--muted); font-size: 11.5px; margin: 2px 0 0; }
 .panel-head h3 { font-size: 14.5px; color: var(--ink); }
-.panel-head-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.panel-head-actions { min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* GRÁFICOS E CONTROLES */
 .chart-legend {
@@ -1154,10 +1157,12 @@ main {
 
 .segment-control {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   overflow: hidden;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 .segment-control button {
   border: 0;
@@ -1893,6 +1898,8 @@ footer a { margin-left: auto; font-size: 11px; font-weight: 650; }
 }
 
 @media (max-width: 1320px) {
+  .topbar { flex-wrap: wrap; }
+  .top-actions { flex-wrap: wrap; max-width: 100%; margin-left: auto; }
   .exec-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cards-secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2004,4 +2011,11 @@ footer a { margin-left: auto; font-size: 11px; font-weight: 650; }
   #impressao .print-metrics { display: flex; gap: 15px; flex-wrap: wrap; font-size: 10px; }
   #impressao .print-metrics div { border: 1px solid #bbbbbb; padding: 8px; }
   #impressao .print-metrics b { display: block; font-size: 15px; }
+}
+
+/* Mantém controles e focos visíveis abaixo do cabeçalho em cada largura. */
+@media screen {
+  html { scroll-padding-top: calc(var(--header-height, 90px) + 16px); }
+  main :is(button, a, input, select, summary, [tabindex], h2, h3) { scroll-margin-top: calc(var(--header-height, 90px) + 16px); }
+  .sidebar, .workspace.menu-collapsed > .collapsed-rail { top: var(--header-height, 90px); height: calc(100dvh - var(--header-height, 90px)); }
 }

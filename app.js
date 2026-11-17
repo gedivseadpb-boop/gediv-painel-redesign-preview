@@ -26,7 +26,7 @@
   ];
   const kpis = [
     ['processos', 'Total de processos distintos', 'Processos administrativos distintos (ex.: SAD-PSE-*). Um mesmo processo ou resenha pode reunir várias decisões individuais.', 'Processo administrativo', 'Base gerencial · agregação pública pendente'],
-    ['resenhas', 'Total de resenhas', 'Resenhas / despachos distintos publicados no DOE-PB. Não se confundem com o total de decisões nem com ocorrências em células.', 'Resenha / ato', '35–39 atos identificados · resenhas em integração'],
+    ['resenhas', 'Total de resenhas', 'Resenhas / despachos distintos publicados no DOE-PB. Não se confundem com o total de decisões nem com ocorrências em células.', 'Resenha / ato', 'Resenhas em integração; atos são outra unidade'],
     ['decisoes', 'Total de decisões individuais', 'Decisões vigentes de publicações originais nos dois eixos. Divulgadas em faixas protegidas; identificação pessoal restrita.', 'Decisão original', 'Integrado na projeção pública'],
     ['deferidos', 'Total de deferimentos', 'Decisões originais com resultado de deferimento expresso após conferência documental.', 'Resultado de mérito', 'Pendente na projeção pública v1'],
     ['indeferidos', 'Total de indeferimentos', 'Decisões originais com resultado de indeferimento expresso. Não inclui atos tornados sem efeito.', 'Resultado de mérito', 'Pendente na projeção pública v1'],
@@ -99,7 +99,7 @@
   }
 
   function axisMetric(eixo, modalidade = '') {
-    if (!data || M.selectionIssue(state)) return M.vazio();
+    if (!data || (M.selectionIssue(state) || M.coverageIssue(data, state))) return M.vazio();
     if (state.eixo && state.eixo !== eixo) return M.vazio();
     if (modalidade && state.modalidade && state.modalidade !== modalidade) return M.vazio();
     if (!modalidade && !state.inicio && !state.fim && !state.grupo && !state.subcategorias.length && !state.modalidade) {
@@ -125,8 +125,10 @@
 
     const progPct = decBounds && progBounds && decBounds.max > 0 ? Math.min(100, Math.round(progBounds.min / decBounds.min * 100)) : 0;
     const tsPct = decBounds && tsBounds && decBounds.max > 0 ? Math.min(100, Math.round(tsBounds.min / decBounds.min * 100)) : 0;
-    const vertShare = vertBounds && horizBounds && (vertBounds.min + horizBounds.min) > 0 ? Math.round(vertBounds.min / (vertBounds.min + horizBounds.min) * 100) : 55;
-    const cobPct = cob && cob.edicoes ? Math.round((cob.edicoes_com_atos || 13) / cob.edicoes * 100) : 68;
+    const vertShare = vertBounds && horizBounds && (vertBounds.min + horizBounds.min) > 0 ? Math.round(vertBounds.min / (vertBounds.min + horizBounds.min) * 100) : 0;
+    const vertInterval = M.shareLabel(M.shareInterval(vert, [vert, horiz]));
+    const horizInterval = M.shareLabel(M.shareInterval(horiz, [vert, horiz]));
+    const cobPct = cob && cob.edicoes ? Math.round((cob.edicoes - cob.ausencia_tecnica_edicoes - cob.inconclusivas) / cob.edicoes * 100) : 0;
 
     if (page === 'progressao') {
       const progActs = data ? M.qualityMetric(data, { ...state, eixo: 'PROGRESSAO', subcategorias: [] }, visible.filter(c => c.eixo === 'PROGRESSAO'), 'atos') : M.vazio();
@@ -136,31 +138,26 @@
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">DECISÕES · EIXO PROGRESSÃO</span><button type="button" class="metric-help" data-kpi="decisoes" aria-label="Entender Decisões de Progressão">ⓘ</button></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(prog)) + '</strong>' +
             '<div class="exec-kpi-meta"><span>Total do eixo no recorte</span><b>Faixa protegida</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (progBounds ? '100' : '0') + '%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-indigo">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">PROGRESSÃO VERTICAL</span><button type="button" class="text-chip" data-serie="VERTICAL">' + (state.modalidade === 'VERTICAL' ? 'Ativo ✓' : 'Filtrar →') + '</button></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(vert)) + '</strong>' +
-            '<div class="exec-kpi-meta"><span>Out/2026: 40–44 · Nov/2026: 60–64</span><b>~' + vertShare + '% do eixo</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (vertBounds ? vertShare : 0) + '%"></span></div>' +
+            '<div class="exec-kpi-meta"><span>Células publicáveis no recorte</span><b>' + vertInterval + ' entre modalidades visíveis</b></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-teal">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">PROGRESSÃO HORIZONTAL</span><button type="button" class="text-chip" data-serie="HORIZONTAL">' + (state.modalidade === 'HORIZONTAL' ? 'Ativo ✓' : 'Filtrar →') + '</button></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(horiz)) + '</strong>' +
-            '<div class="exec-kpi-meta"><span>GPC, GAJ, MAG e SSA divulgados</span><b>~' + (100 - vertShare) + '% do eixo</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (horizBounds ? (100 - vertShare) : 0) + '%"></span></div>' +
+            '<div class="exec-kpi-meta"><span>Células publicáveis no recorte</span><b>' + horizInterval + ' entre modalidades visíveis</b></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-amber">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">ATOS DE PROGRESSÃO NO DOE</span></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(progActs)) + '</strong>' +
             '<div class="exec-kpi-meta"><span>Atos distintos no eixo</span><b>Em conferência</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (M.numberBounds(progActs) ? '72' : '0') + '%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-slate">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">CATÁLOGO PCCR</span></div>' +
             '<strong class="exec-kpi-value">16 grupos</strong>' +
-            '<div class="exec-kpi-meta"><span>4 grupos c/ faixa ≥ 5 + Vertical</span><b>12 preservados (&lt; 5)</b></div>' +
-            '<div class="kpi-track"><span style="width:31%"></span></div>' +
+            '<div class="exec-kpi-meta"><span>' + new Set(visible.map(c => c.grupo).filter(Boolean)).size + ' grupos com células no recorte</span><b>Ausência de célula não significa zero</b></div>' +
           '</article>' +
         '</div>' +
       '</section>';
@@ -174,31 +171,26 @@
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">DECISÕES · TEMPO DE SERVIÇO</span><button type="button" class="metric-help" data-kpi="decisoes" aria-label="Entender Decisões de Tempo de Serviço">ⓘ</button></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(ts)) + '</strong>' +
             '<div class="exec-kpi-meta"><span>Resumo geral do eixo no recorte</span><b>Faixa protegida</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (tsBounds ? '100' : '0') + '%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-indigo">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">ATOS IDENTIFICADOS NO EIXO</span></div>' +
             '<strong class="exec-kpi-value">' + esc(M.metricLabel(tsActs)) + '</strong>' +
             '<div class="exec-kpi-meta"><span>Atos distintos de Tempo de Serviço</span><b>Provisórios em revisão</b></div>' +
-            '<div class="kpi-track"><span style="width:' + (M.numberBounds(tsActs) ? '100' : '0') + '%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-teal">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">MODALIDADES OFICIAIS</span></div>' +
             '<strong class="exec-kpi-value">7 serviços</strong>' +
             '<div class="exec-kpi-meta"><span>TS-01 a TS-07 no catálogo oficial</span><b>Sempre selecionáveis</b></div>' +
-            '<div class="kpi-track"><span style="width:100%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-blue">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">PROTEÇÃO DE CÉLULAS (LGPD)</span></div>' +
             '<strong class="exec-kpi-value">Limiar ≥ 5</strong>' +
             '<div class="exec-kpi-meta"><span>Subcategorias c/ &lt; 5 matrículas/mês</span><b>Preservadas (não são zero)</b></div>' +
-            '<div class="kpi-track"><span style="width:65%"></span></div>' +
           '</article>' +
           '<article class="exec-kpi-card tone-slate">' +
             '<div class="exec-kpi-top"><span class="exec-kpi-tag">COBERTURA DO DOE-PB</span><a class="text-chip" href="#cobertura">Fontes →</a></div>' +
             '<strong class="exec-kpi-value">' + (cob ? esc(cob.edicoes + ' ed. · ' + cob.paginas + ' págs.') : '—') + '</strong>' +
             '<div class="exec-kpi-meta"><span>Janela lida da projeção</span><b>' + (cob ? dayLabel(cob.primeira_publicacao) + ' a ' + dayLabel(cob.ultima_publicacao) : '') + '</b></div>' +
-            '<div class="kpi-track"><span style="width:' + cobPct + '%"></span></div>' +
           '</article>' +
         '</div>' +
       '</section>';
@@ -210,31 +202,26 @@
           '<div class="exec-kpi-top"><span class="exec-kpi-tag">DECISÕES INDIVIDUAIS · 2 EIXOS</span><button type="button" class="metric-help" data-kpi="decisoes" aria-label="Entender Total de decisões individuais">ⓘ</button></div>' +
           '<strong class="exec-kpi-value">' + esc(M.metricLabel(decision)) + '</strong>' +
           '<div class="exec-kpi-meta"><span>' + (decBounds ? (M.summaryFor(data, state) ? 'Total do recorte em faixas protegidas' : 'Soma dos agregados visíveis') : 'Recorte sem agregado divulgado') + '</span><b>' + (decBounds ? 'Provisórios em validação' : '—') + '</b></div>' +
-          '<div class="kpi-track"><span style="width:' + (decBounds ? '100' : '0') + '%"></span></div>' +
         '</article>' +
         '<article class="exec-kpi-card tone-indigo">' +
-          '<div class="exec-kpi-top"><span class="exec-kpi-tag">ATOS IDENTIFICADOS NO DOE</span><button type="button" class="metric-help" data-kpi="resenhas" aria-label="Entender Atos e Resenhas">ⓘ</button></div>' +
+          '<div class="exec-kpi-top"><span class="exec-kpi-tag">ATOS IDENTIFICADOS NO DOE</span><button type="button" class="metric-help" data-kpi="atos" aria-label="Entender Atos identificados">ⓘ</button></div>' +
           '<strong class="exec-kpi-value">' + esc(M.metricLabel(acts)) + '</strong>' +
           '<div class="exec-kpi-meta"><span>Atos distintos no recorte</span><b>' + (M.numberBounds(acts) ? 'Resenhas: integração pendente' : 'Não calculável no recorte') + '</b></div>' +
-          '<div class="kpi-track"><span style="width:' + (M.numberBounds(acts) ? '78' : '0') + '%"></span></div>' +
         '</article>' +
         '<article class="exec-kpi-card tone-teal">' +
           '<div class="exec-kpi-top"><span class="exec-kpi-tag">PROGRESSÃO FUNCIONAL (EIXO 1)</span><button type="button" class="text-chip" data-eixo-rapido="PROGRESSAO">Filtrar eixo →</button></div>' +
           '<strong class="exec-kpi-value">' + esc(M.metricLabel(prog)) + '</strong>' +
-          '<div class="exec-kpi-meta"><span>Vertical: <b>' + esc(M.metricLabel(vert)) + '</b> · Horizontal: <b>' + esc(M.metricLabel(horiz)) + '</b></span><b>' + (progBounds ? '~89%–91% da base' : '—') + '</b></div>' +
-          '<div class="kpi-track dual-track" title="Proporção Vertical vs Horizontal"><span class="seg-vert" style="width:' + (progBounds ? vertShare : 0) + '%"></span><span class="seg-horiz" style="width:' + (progBounds ? (100 - vertShare) : 0) + '%"></span></div>' +
+          '<div class="exec-kpi-meta"><span>Vertical: <b>' + esc(M.metricLabel(vert)) + '</b> · Horizontal: <b>' + esc(M.metricLabel(horiz)) + '</b></span><b>Faixas do recorte; cobertura parcial</b></div>' +
         '</article>' +
         '<article class="exec-kpi-card tone-amber">' +
           '<div class="exec-kpi-top"><span class="exec-kpi-tag">TEMPO DE SERVIÇO (EIXO 2 · 7 SERVIÇOS)</span><button type="button" class="text-chip" data-eixo-rapido="TEMPO_SERVICO">Filtrar eixo →</button></div>' +
           '<strong class="exec-kpi-value">' + esc(M.metricLabel(ts)) + '</strong>' +
-          '<div class="exec-kpi-meta"><span>Resumo do eixo · 7 modalidades TS-01 a TS-07</span><b>' + (tsBounds ? '15–19 atos no eixo' : 'Subcategorias < 5 preservadas') + '</b></div>' +
-          '<div class="kpi-track"><span style="width:' + (tsBounds ? Math.max(18, tsPct) : 0) + '%"></span></div>' +
+          '<div class="exec-kpi-meta"><span>Resumo do eixo · 7 modalidades TS-01 a TS-07</span><b>Detalhamento por serviço não divulgado</b></div>' +
         '</article>' +
         '<article class="exec-kpi-card tone-slate">' +
           '<div class="exec-kpi-top"><span class="exec-kpi-tag">EDIÇÕES E PÁGINAS PROCESSADAS</span><a class="text-chip" href="#cobertura">Fontes →</a></div>' +
           '<strong class="exec-kpi-value">' + (cob ? esc(cob.edicoes + ' ed. · ' + cob.paginas + ' págs.') : '—') + '</strong>' +
-          '<div class="exec-kpi-meta"><span>' + (cob ? esc((cob.edicoes_com_atos || 13) + ' edições com atos · ' + cob.ausencia_tecnica_edicoes + ' sem atos · ' + cob.inconclusivas + ' inconcl.') : 'Base documental') + '</span><b>' + (cob ? dayLabel(cob.primeira_publicacao) + ' a ' + dayLabel(cob.ultima_publicacao) : '') + '</b></div>' +
-          '<div class="kpi-track"><span style="width:' + cobPct + '%"></span></div>' +
+          '<div class="exec-kpi-meta"><span>' + (cob ? esc((cob.edicoes - cob.ausencia_tecnica_edicoes - cob.inconclusivas) + ' edições com atos · ' + cob.ausencia_tecnica_edicoes + ' sem atos · ' + cob.inconclusivas + ' inconcl.') : 'Base documental') + '</span><b>' + (cob ? dayLabel(cob.primeira_publicacao) + ' a ' + dayLabel(cob.ultima_publicacao) : '') + '</b></div>' +
         '</article>' +
       '</div>' +
       '<div class="pending-strip" role="region" aria-label="Resumo rápido de indicadores em integração">' +
@@ -276,7 +263,7 @@
       const isCob = key === 'cobertura_doe' && cob;
       const val = isCob ? (cob.edicoes + ' edições · ' + cob.paginas + ' págs.') : '—';
       const sub = isCob
-        ? ((cob.edicoes_com_atos || 13) + ' edições com atos GEDIV · ' + cob.ausencia_tecnica_edicoes + ' com ausência técnica · ' + cob.inconclusivas + ' inconclusiva')
+        ? ((cob.edicoes - cob.ausencia_tecnica_edicoes - cob.inconclusivas) + ' edições com atos GEDIV · ' + cob.ausencia_tecnica_edicoes + ' com ausência técnica · ' + cob.inconclusivas + ' inconclusiva')
         : (data ? 'Não verificado / não divulgado na projeção v1' : 'Aguardando dados');
       return '<article class="metric-card secondary-card ' + (isCob ? 'available' : 'pending-metric') + '">' +
         '<div class="metric-card-cat">' + esc(category) + '</div>' +
@@ -365,7 +352,7 @@
       });
     }
     const body = chartControls(line ? 'histórico' : 'evolução', !line) +
-      (svg ? '<div class="chart-box" data-plot-kind="' + (line ? 'line' : 'bars') + '"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" role="group" aria-label="' + (isLine ? 'Linhas' : isStacked ? 'Barras empilhadas' : 'Colunas agrupadas') + ' por mês, limites das faixas publicáveis">' + svg + '</svg></div>' : empty('Sem agregado publicável no recorte', M.selectionIssue(state) || 'Dados preservados ou não divulgados. Isso não confirma ausência de publicação.')) +
+      (svg ? '<div class="chart-box" data-plot-kind="' + (line ? 'line' : 'bars') + '"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" role="group" aria-label="' + (isLine ? 'Linhas' : isStacked ? 'Barras empilhadas' : 'Colunas agrupadas') + ' por mês, limites das faixas publicáveis">' + svg + '</svg></div>' : empty('Sem agregado publicável no recorte', (M.selectionIssue(state) || M.coverageIssue(data, state)) || 'Dados preservados ou não divulgados. Isso não confirma ausência de publicação.')) +
       legend() +
       '<p class="data-note">Clique em qualquer mês para filtrar o painel. Parte sólida: limite inferior; parte clara: teto da faixa.</p>' +
       alternative(['Mês', ...series.map(s => s.name)], periods.map((p, i) => [monthLabel(p), ...values[i].map(M.metricLabel)]), 'Mesmos dados do gráfico · ' + (chartUnit === 'decisoes' ? 'decisões' : 'ocorrências de atos') + ' em faixas');
@@ -398,7 +385,7 @@
       (!isPie ? '<div class="donut-center"><b>' + esc(M.metricLabel(total)) + '</b><small>' + (present.length ? 'decisões nas células' : 'Células < 5 preservadas') + '</small></div>' : '') +
       '</div><div class="donut-legend">' +
       (isPie ? '<div class="pie-total-badge">Total nos agregados exibidos: <b>' + esc(M.metricLabel(total)) + '</b></div>' : '') +
-      items.map((i, k) => '<button type="button" data-' + (ts ? 'sub' : 'serie') + '="' + i.key + '" title="Consultar ' + esc(i.name) + '"><i class="swatch" style="--series:' + i.color + '"></i><span>' + esc(i.name) + ' <b>' + esc(M.metricLabel(i.metric)) + '</b><small>' + (M.numberBounds(i.metric) ? esc(rows[k][2]) + ' entre agregados exibidos' : (i.key === 'TEMPO_SERVICO' && M.numberBounds(tsSummary) ? '15–19 no resumo do eixo · células < 5 preservadas' : 'Não divulgado / célula < 5')) + '</small></span></button>').join('') +
+      items.map((i, k) => '<button type="button" data-' + (ts ? 'sub' : 'serie') + '="' + i.key + '" title="Consultar ' + esc(i.name) + '"><i class="swatch" style="--series:' + i.color + '"></i><span>' + esc(i.name) + ' <b>' + esc(M.metricLabel(i.metric)) + '</b><small>' + (M.numberBounds(i.metric) ? esc(rows[k][2]) + ' entre agregados exibidos' : (i.key === 'TEMPO_SERVICO' && M.numberBounds(tsSummary) ? M.metricLabel(tsSummary) + ' no resumo do eixo · detalhamento preservado' : 'Não divulgado / célula < 5')) + '</small></span></button>').join('') +
       '</div></div>' + extraAxisNote +
       '<p class="data-note">Arcos proporcionais aos limites inferiores. Clique em uma fatia ou item da legenda para filtrar.</p>' +
       alternative(['Assunto', 'Decisões (faixa)', '% entre agregados exibidos (faixa)'], rows, 'Sem inferência sobre células suprimidas');
@@ -417,10 +404,13 @@
     const vPct = totalMin ? Math.round((vb?.min || 0) / totalMin * 100) : 50;
     const hPct = totalMin ? 100 - vPct : 50;
 
-    const outVert = filteredMetric(vertCells.filter(c => c.periodo === '2026-10'), 'decisoes');
-    const novVert = filteredMetric(vertCells.filter(c => c.periodo === '2026-11'), 'decisoes');
-    const outHoriz = filteredMetric(horizCells.filter(c => c.periodo === '2026-10'), 'decisoes');
-    const novHoriz = filteredMetric(horizCells.filter(c => c.periodo === '2026-11'), 'decisoes');
+    const periods = [...new Set(data.celulas.map(c => c.periodo))].sort().slice(-2);
+    const firstPeriod = periods[0], lastPeriod = periods.at(-1);
+    const periodCaption = periods.map(monthLabel).join(' → ');
+    const outVert = filteredMetric(vertCells.filter(c => c.periodo === firstPeriod), 'decisoes');
+    const novVert = filteredMetric(vertCells.filter(c => c.periodo === lastPeriod), 'decisoes');
+    const outHoriz = filteredMetric(horizCells.filter(c => c.periodo === firstPeriod), 'decisoes');
+    const novHoriz = filteredMetric(horizCells.filter(c => c.periodo === lastPeriod), 'decisoes');
 
     const body = '<div class="comp-grid">' +
       '<div class="comp-card comp-vert">' +
@@ -428,7 +418,7 @@
         '<div class="comp-main-num"><strong>' + esc(M.metricLabel(vertDec)) + '</strong><span>decisões nas células</span></div>' +
         '<div class="comp-sub-stats">' +
           '<div><small>Ocorrências de atos</small><b>' + esc(M.metricLabel(vertAtos)) + '</b></div>' +
-          '<div><small>Out/2026 → Nov/2026</small><b>' + esc(M.metricLabel(outVert)) + ' → ' + esc(M.metricLabel(novVert)) + '</b></div>' +
+          '<div><small>' + esc(periodCaption) + '</small><b>' + esc(M.metricLabel(outVert)) + ' → ' + esc(M.metricLabel(novVert)) + '</b></div>' +
           '<div><small>Grupos PCCR nas células</small><b>Grupo não informado</b></div>' +
         '</div>' +
       '</div>' +
@@ -437,8 +427,8 @@
         '<div class="comp-main-num"><strong>' + esc(M.metricLabel(horizDec)) + '</strong><span>decisões nas células</span></div>' +
         '<div class="comp-sub-stats">' +
           '<div><small>Ocorrências de atos</small><b>' + esc(M.metricLabel(horizAtos)) + '</b></div>' +
-          '<div><small>Out/2026 → Nov/2026</small><b>' + esc(M.metricLabel(outHoriz)) + ' → ' + esc(M.metricLabel(novHoriz)) + '</b></div>' +
-          '<div><small>Grupos PCCR divulgados</small><b>GPC, GAJ, MAG, SSA</b></div>' +
+          '<div><small>' + esc(periodCaption) + '</small><b>' + esc(M.metricLabel(outHoriz)) + ' → ' + esc(M.metricLabel(novHoriz)) + '</b></div>' +
+          '<div><small>Grupos PCCR divulgados</small><b>' + esc([...new Set(horizCells.map(c => c.grupo).filter(Boolean))].join(', ') || 'Não divulgado') + '</b></div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -449,7 +439,7 @@
       '</div>' +
     '</div>' +
     alternative(
-      ['Modalidade', 'Decisões (faixa)', 'Ocorrências de atos', 'Out/2026', 'Nov/2026'],
+      ['Modalidade', 'Decisões (faixa)', 'Ocorrências de atos', monthLabel(firstPeriod), monthLabel(lastPeriod)],
       [
         ['Progressão Vertical', M.metricLabel(vertDec), M.metricLabel(vertAtos), M.metricLabel(outVert), M.metricLabel(novVert)],
         ['Progressão Horizontal', M.metricLabel(horizDec), M.metricLabel(horizAtos), M.metricLabel(outHoriz), M.metricLabel(novHoriz)]
@@ -582,7 +572,7 @@
       body = empty(
         queryMode === 'resenha' ? 'Resenhas individuais em integração' : 'Consulta por processo restrita (LGPD)',
         queryMode === 'resenha'
-          ? 'A projeção pública atual contém 35–39 atos identificados em células mensais, sem lista nominal de resenhas. Os agregados mensais não são convertidos em resenhas fictícias.'
+          ? 'A projeção pública atual informa ' + M.metricLabel(data.resumo.atos) + ' atos distintos na base completa, sem lista nominal de resenhas. Os agregados mensais não são convertidos em resenhas fictícias.'
           : 'Nome, matrícula, número de processo (SAD-PSE) e evidências individuais exigem autenticação no servidor gerencial.',
         true
       ) + '<div class="detail-actions"><a class="button primary" href="#gerencial">Entender o acesso gerencial</a><button type="button" class="button" data-consulta="agregados">Voltar aos agregados</button></div>';
@@ -646,7 +636,7 @@
         '<span class="trail-step locked" title="Disponível na área gerencial autenticada">7. PDF DOE ◇</span>' +
       '</div>' +
       '<div class="detail-actions">' +
-        (!expanded ? '<button type="button" class="button primary compact" data-detalhe="' + esc(cellKey(activeCell)) + '">Abrir ficha completa</button>' : '<button type="button" class="button" data-exportar-item="' + esc(cellKey(activeCell)) + '">↓ Exportar agregado (CSV)</button>') +
+        (!expanded ? '<button type="button" class="button primary compact" data-detalhe="' + esc(cellKey(activeCell)) + '">Entender este agregado</button>' : '<button type="button" class="button" data-exportar-item="' + esc(cellKey(activeCell)) + '">↓ Exportar agregado (CSV)</button>') +
         '<a class="button compact" href="#cobertura">Edições e fontes</a>' +
       '</div>';
   }
@@ -655,13 +645,13 @@
     const rows = M.sortCells(visible, tableSort, sortDirection), info = M.pagination(rows, tablePage, pageSize);
     tablePage = info.page;
     const headers = [['periodo', 'Mês'], ['eixo', 'Eixo / modalidade'], ['categoria', 'Grupo / serviço'], ['situacao', 'Conferência'], ['atos', 'Atos na célula'], ['decisoes', 'Decisões']];
-    const body = '<div class="table-scroll"><table><caption>Agregados mensais publicáveis · faixas protegidas. Não são registros individuais.</caption><thead><tr>' + headers.map(([key, title]) => '<th scope="col" aria-sort="' + (tableSort === key ? sortDirection === 1 ? 'ascending' : 'descending' : 'none') + '"><button type="button" data-ordenar="' + key + '">' + esc(title) + (tableSort === key ? sortDirection === 1 ? ' ↑' : ' ↓' : ' ↕') + '</button></th>').join('') + '<th scope="col">Consulta</th></tr></thead><tbody>' + (info.items.length ? info.items.map(c => '<tr><td><b>' + esc(monthLabel(c.periodo)) + '</b></td><td>' + esc(cellTitle(c)) + '</td><td>' + esc(cellCategory(c)) + '</td><td>' + pill(c.situacao === 'conferido' ? 'Conferido' : 'Provisório', c.situacao) + '</td><td>' + esc(M.metricLabel(c.atos)) + '</td><td><b>' + esc(M.metricLabel(c.decisoes)) + '</b></td><td><button class="table-button" type="button" data-detalhe="' + esc(cellKey(c)) + '">Ver ficha →</button></td></tr>').join('') : '<tr><td colspan="7">Não há agregados publicáveis neste recorte. Isso não confirma ausência de publicações.</td></tr>') + '</tbody></table></div>' + pageControls(info, 'tabela') + '<p class="data-note">Os totais da base incluem recortes que não podem ser divulgados. Atos podem repetir entre células; não some esta coluna como atos distintos. Exportações incluem todas as páginas da seleção.</p>';
+    const body = '<div class="table-scroll"><table><caption>Agregados mensais publicáveis · faixas protegidas. Não são registros individuais.</caption><thead><tr>' + headers.map(([key, title]) => '<th scope="col" aria-sort="' + (tableSort === key ? sortDirection === 1 ? 'ascending' : 'descending' : 'none') + '"><button type="button" data-ordenar="' + key + '">' + esc(title) + (tableSort === key ? sortDirection === 1 ? ' ↑' : ' ↓' : ' ↕') + '</button></th>').join('') + '<th scope="col">Consulta</th></tr></thead><tbody>' + (info.items.length ? info.items.map(c => '<tr><td><b>' + esc(monthLabel(c.periodo)) + '</b></td><td>' + esc(cellTitle(c)) + '</td><td>' + esc(cellCategory(c)) + '</td><td>' + pill(c.situacao === 'conferido' ? 'Conferido' : 'Provisório', c.situacao) + '</td><td>' + esc(M.metricLabel(c.atos)) + '</td><td><b>' + esc(M.metricLabel(c.decisoes)) + '</b></td><td><button class="table-button" type="button" data-detalhe="' + esc(cellKey(c)) + '">Entender agregado →</button></td></tr>').join('') : '<tr><td colspan="7">Não há agregados publicáveis neste recorte. Isso não confirma ausência de publicações.</td></tr>') + '</tbody></table></div>' + pageControls(info, 'tabela') + '<p class="data-note">Os totais da base incluem recortes que não podem ser divulgados. Atos podem repetir entre células; não some esta coluna como atos distintos. Exportações incluem todas as páginas da seleção.</p>';
     return panel('Tabela de consulta dos agregados disponíveis', visible.length + ' agregado(s) neste recorte · ordenar, consultar ficha ou exportar', body, '<button class="button compact" type="button" data-ver-todos>Ver todos os agregados</button>', 'records');
   }
 
   function coveragePanel() {
     const c = data.cobertura;
-    const totalEd = c.edicoes || 19;
+    const totalEd = c.edicoes;
     const comAtos = c.edicoes_com_atos ?? Math.max(0, totalEd - (c.ausencia_tecnica_edicoes || 0) - (c.inconclusivas || 0));
     const semAtos = c.ausencia_tecnica_edicoes || 0;
     const inconc = c.inconclusivas || 0;
@@ -756,8 +746,8 @@
     const cells = Array.from({ length: first }, () => '<span aria-hidden="true"></span>').join('') + Array.from({ length: days }, (_, i) => { const d = calendarMonth + '-' + String(i + 1).padStart(2, '0'); return '<button type="button" data-dia="' + d + '" class="' + (selectedDay === d ? 'selected' : '') + '" aria-label="Consultar cobertura de ' + dayLabel(d) + ', não verificada por dia"><b>' + (i + 1) + '</b><small>Não verificado</small></button>'; }).join('');
     const histKPIs = '<div class="support-cards">' +
       '<div class="support-card"><span>Início histórico previsto</span><b>01/01/2026</b><small>Meta de retrospectiva documental</small></div>' +
-      '<div class="support-card"><span>Janela lida atualmente</span><b>' + esc(dayLabel(c.primeira_publicacao) + ' – ' + dayLabel(c.ultima_publicacao)) + '</b><small>Outubro e Novembro/2026</small></div>' +
-      '<div class="support-card"><span>Edições processadas</span><b>' + esc(c.edicoes) + ' edições</b><small>' + esc((c.edicoes_com_atos ?? 13) + ' com atos · ' + c.ausencia_tecnica_edicoes + ' sem atos') + '</small></div>' +
+      '<div class="support-card"><span>Janela lida atualmente</span><b>' + esc(dayLabel(c.primeira_publicacao) + ' – ' + dayLabel(c.ultima_publicacao)) + '</b><small>Janela da projeção inteira</small></div>' +
+      '<div class="support-card"><span>Edições processadas</span><b>' + esc(c.edicoes) + ' edições</b><small>' + esc((c.edicoes - c.ausencia_tecnica_edicoes - c.inconclusivas) + ' com atos · ' + c.ausencia_tecnica_edicoes + ' sem atos') + '</small></div>' +
       '<div class="support-card"><span>Páginas processadas</span><b>' + esc(c.paginas) + ' págs.</b><small>' + esc(c.inconclusivas) + ' edição inconclusiva</small></div>' +
     '</div>';
     return section('Histórico e cobertura', 'Histórico previsto desde 01/01/2026. Lacunas nunca são apresentadas como ausência de atos.', 'Cobertura documental parcial') +
@@ -848,7 +838,7 @@
         '<div class="support-card"><span>Edições inconclusivas na base</span><b>' + esc(data.cobertura.inconclusivas) + '</b><small>Resumo de cobertura documental</small></div>' +
       '</div>' +
       panel('O que precisa de conferência administrativa', 'Situação conhecida nesta projeção e limites de interpretação documental.',
-        '<div class="list-status"><div><b>Resenha 562/2026 · publicação de 23/10/2026</b><p>Interpretação inconclusiva relatada na documentação de continuidade. A situação individual atual não está disponível nesta projeção.</p></div>' + pill('Não verificado', 'neutral') + '</div>' +
+        '<div class="list-status"><div><b>Interpretação documental inconclusiva</b><p>A cobertura registra leituras inconclusivas que exigem conferência. Detalhes de documentos individuais não integram esta projeção pública.</p></div>' + pill('Não verificado', 'neutral') + '</div>' +
         '<div class="list-status"><div><b>Grupos e códigos PCCR sem homologação</b><p>TEC. ADM / AST, STF / SFT e denominação INT dependem de confirmação administrativa. Não são equiparados por aproximação.</p></div>' + pill('Confirmação necessária', 'provisorio') + '</div>' +
         '<div class="list-status"><div><b>Tempo de Serviço: células mensais preservadas (&lt; 5)</b><p>Os sete serviços (TS-01 a TS-07) permanecem acessíveis, com total do eixo em ' + esc(M.metricLabel(axisMetric('TEMPO_SERVICO'))) + ' decisões. Subcategorias com menos de 5 matrículas no mês ficam preservadas.</p></div>' + pill('Preservado (LGPD)', 'neutral') + '</div>' +
         '<div class="list-status"><div><b>Revisão de registros individuais e evidências PDF</b><p>Consultas por nome, matrícula e processo SAD-PSE exigem acesso gerencial autenticado e trilha de auditoria.</p></div><a class="button primary compact" href="#gerencial">Área gerencial</a></div>'
@@ -887,7 +877,7 @@
           ['#', 'Indicador executivo', 'Disponibilidade atual', 'Fonte / Camada', 'Conexão no painel público'],
           [
             ['1', 'Total de processos distintos', 'Pendente na projeção v1', 'Base gerencial SQLite (`processo`)', 'Card de acompanhamento · aguarda contagem agregada sem expor SAD-PSE'],
-            ['2', 'Total de resenhas / atos', 'Ativo: ' + M.metricLabel(data.resumo.atos), '`dados.json` → `resumo.atos` e `celulas[].atos`', 'Card executivo principal e fichas de agregados mensais'],
+            ['2', 'Total de atos (resenhas indisponíveis)', 'Ativo: ' + M.metricLabel(data.resumo.atos), '`dados.json` → `resumo.atos` e `celulas[].atos`', 'Card executivo principal e fichas de agregados mensais'],
             ['3', 'Total de decisões individuais', 'Ativo: ' + M.metricLabel(M.sumMetrics([data.resumo.conferidos, data.resumo.provisorios])), '`dados.json` → `resumo` e `celulas[].decisoes`', 'Card executivo principal, gráficos de evolução, rosca e barras'],
             ['4', 'Total de deferimentos', 'Em conferência administrativa', 'Base canônica (mérito em revisão)', 'Matriz de 10 indicadores e painel de resultados por área'],
             ['5', 'Total de indeferimentos', 'Em conferência administrativa', 'Base canônica (mérito em revisão)', 'Matriz de 10 indicadores e painel de resultados por área'],
@@ -945,7 +935,7 @@
           '<span class="trail-step locked">6. Decisão / Mérito ◇</span><span class="trail-sep">›</span>' +
           '<span class="trail-step locked">7. Evento Modificador ◇</span>' +
         '</div>' +
-        '<p class="data-note">A separação física entre o snapshot público (`dados.json`) e o banco gerencial (`SQLite` + API autenticada) garante conformidade integral com a LGPD.</p>'
+        '<p class="data-note">O pacote público contém apenas agregados protegidos. A área gerencial requer validação própria de autenticação, autorização e auditoria antes de ser habilitada.</p>'
       ) +
       panel('Estrutura das fichas documentais na área gerencial autenticada', 'Navegação prevista: Resenha → tabela completa de ocorrências → processo → ficha documental e PDF oficial.',
         '<div class="field-groups">' + groups.map(([title, text]) => '<details open><summary>' + esc(title) + '</summary><p>' + esc(text) + '</p><p class="field-note">Campos ausentes na publicação original permanecem rotulados como “Não extraído”.</p></details>').join('') + '</div>'
@@ -961,8 +951,10 @@
     document.querySelectorAll('[data-periodo]').forEach(btn => {
       const p = btn.dataset.periodo;
       const active = (p === 'tudo' && !state.inicio && !state.fim) ||
-        (p === '2026-11' && state.inicio === '2026-11-01' && state.fim === '2026-11-30') ||
-        (p === '2026-10' && state.inicio === '2026-10-01' && state.fim === '2026-10-31');
+        (/^20\d\d-\d\d$/.test(p) && state.inicio === p + '-01' && state.fim === M.monthEnd(p)) ||
+        (p === 'hoje' && state.inicio === today() && state.fim === today()) ||
+        (p === 'mes' && state.inicio === today().slice(0,7) + '-01' && state.fim === M.monthEnd(today().slice(0,7))) ||
+        (p === 'ano' && state.inicio === today().slice(0,4) + '-01-01' && state.fim === today().slice(0,4) + '-12-31');
       btn.setAttribute('aria-pressed', String(active));
     });
   }
@@ -981,7 +973,7 @@
     if (sync) syncForm();
     $('filtrosAtivos').textContent = describeFilters();
     renderFilterChips();
-    const issue = M.selectionIssue(state);
+    const issue = (M.selectionIssue(state) || M.coverageIssue(data, state));
     $('restricaoRecorte').hidden = !issue;
     $('restricaoRecorte').innerHTML = issue ? '<div><b>Este recorte não pode ser calculado</b><p>' + esc(issue) + '</p></div>' : '';
     const contents = { geral: overview, progressao: overview, tempo: overview, historico: history, dia: daily, alteracoes: changes, outras: others, cobertura: sources, pendencias: pending, gerencial: management };
@@ -1000,12 +992,44 @@
 
   function setFilters(patch) {
     state = { ...state, ...patch };
+    if (page === 'dia') {
+      if (state.inicio && state.inicio === state.fim) selectedDay = state.inicio;
+      else page = 'geral';
+    }
+    if (page === 'progressao' && state.eixo === 'TEMPO_SERVICO') page = 'tempo';
+    if (page === 'tempo' && state.eixo === 'PROGRESSAO') page = 'progressao';
     queryPage = tablePage = 0;
+    writeLocation();
     render(true);
-    $('anuncio').textContent = 'Consulta atualizada. ' + (M.selectionIssue(state) || visible.length + ' agregados publicáveis na seleção.');
+    $('anuncio').textContent = 'Consulta atualizada. ' + ((M.selectionIssue(state) || M.coverageIssue(data, state)) || visible.length + ' agregados publicáveis na seleção.');
   }
 
   function monthFilter(p) { setFilters({ inicio: p + '-01', fim: M.monthEnd(p) }); }
+
+  function writeLocation(replace = false) {
+    const params = new URLSearchParams();
+    M.CAMPOS.forEach(k => { if (state[k]) params.set(k, state[k]); });
+    state.subcategorias.forEach(s => params.append('servico', s));
+    const hash = '#' + page + (params.size ? '?' + params.toString() : '');
+    if (location.hash !== hash) window.history[replace ? 'replaceState' : 'pushState'](null, '', hash);
+    document.querySelectorAll('#abas a, #menuApoio a, .brand, footer a').forEach(a => {
+      const target = a.hash.slice(1).split('?')[0];
+      if (Object.hasOwn(pages, target)) a.href = '#' + target + (params.size ? '?' + params.toString() : '');
+    });
+  }
+
+  function readLocation() {
+    const params = new URLSearchParams(location.hash.split('?')[1] || '');
+    const next = M.novoEstado();
+    for (const k of M.CAMPOS) {
+      const value = params.get(k) || '';
+      if (k === 'inicio' || k === 'fim') { if (M.validDate(value)) next[k] = value; }
+      else if (k === 'grupo') { if (['MAG','SSA','GAJ','FAP','AST','ANS','ESP','DPS','SFT','OSPB','GPC','SEI','SAT','ACI','PPGG','INT','NAO_INFORMADO'].includes(value)) next[k] = value; }
+      else if (Array.from($(k)?.options || []).some(o => o.value === value)) next[k] = value;
+    }
+    next.subcategorias = [...new Set(params.getAll('servico').filter(s => /^TS-0[1-7]$/.test(s)))];
+    return next;
+  }
 
   function populate() {
     $('grupo').innerHTML = '<option value="">Todos os grupos ocupacionais</option>' + data.catalogo.grupos.map(g => '<option value="' + g.codigo + '">' + esc(g.codigo + ' · ' + g.nome) + '</option>').join('') + '<option value="NAO_INFORMADO">Grupo não informado</option>';
@@ -1022,9 +1046,11 @@
   function route(initial = false) {
     const next = location.hash.slice(1).split('?')[0];
     page = Object.hasOwn(pages, next) ? next : 'geral';
+    if (location.hash.includes('?')) state = readLocation();
     if (page === 'progressao') state = { ...state, eixo: 'PROGRESSAO', subcategorias: [] };
     if (page === 'tempo') state = { ...state, eixo: 'TEMPO_SERVICO', grupo: '', modalidade: '' };
-    if (page === 'dia') { selectedDay ||= today(); state = { ...state, inicio: selectedDay, fim: selectedDay }; }
+    if (page === 'dia') { selectedDay = state.inicio && state.inicio === state.fim ? state.inicio : selectedDay || today(); state = { ...state, inicio: selectedDay, fim: selectedDay }; }
+    writeLocation(true);
     if ($('detalhe').open) $('detalhe').close();
     closeMenu(false);
     if (data) { render(true); if (!initial) $('tituloPagina').focus({ preventScroll: false }); }
@@ -1054,7 +1080,7 @@
 
   function exportRows(cells = visible, local = false) {
     const rows = [['Observatório do Diário Oficial | Painel GEDIV · consulta pública'], ['Projeção gerada (Brasília)', timestamp(data.atualizado_em)], ['Versão de regras', data.versao_regras], ['Filtros aplicados', describeFilters()], ['Escopo', local ? 'Lista pesquisada de agregados públicos; sem registros individuais' : 'Todos os agregados publicáveis dos filtros aplicados, incluindo todas as páginas'], ['Limites', 'Faixas protegidas; ausência de agregado não confirma ausência de atos; atos nas células não são somáveis como distintos']];
-    if (M.selectionIssue(state)) rows.push(['Recorte indisponível', M.selectionIssue(state)]);
+    if ((M.selectionIssue(state) || M.coverageIssue(data, state))) rows.push(['Recorte indisponível', (M.selectionIssue(state) || M.coverageIssue(data, state))]);
     if (!cells.length) rows.push(['Resultado', 'Sem agregado publicável; isso não equivale a zero publicações']);
     return [...rows, [], ...M.cellsToRows(cells, data.catalogo)];
   }
@@ -1065,7 +1091,7 @@
   function buildPrint() {
     if (!data) { $('impressao').innerHTML = ''; return; }
     const rows = M.cellsToRows(M.sortCells(visible, tableSort, sortDirection), data.catalogo), metric = M.decisionMetric(data, state, visible);
-    $('impressao').innerHTML = '<h1>Observatório do Diário Oficial | Painel GEDIV</h1><h2>Consulta pública · ' + esc(pages[page]) + '</h2><p>Projeção gerada em ' + esc(timestamp(data.atualizado_em)) + ' (Brasília) · ' + esc(data.versao_regras) + '</p><p><b>Filtros:</b> ' + esc(describeFilters()) + '</p><div class="print-metrics">' + kpis.map(([key, title]) => '<div>' + esc(title) + '<b>' + (key === 'decisoes' ? esc(M.metricLabel(metric)) : '— · Não verificado') + '</b></div>').join('') + '</div><div class="print-note">' + esc(M.selectionIssue(state) || 'Agregados mensais publicáveis em faixas. A consulta é parcial; dados suprimidos não são zero. Atos nas células podem repetir e não devem ser somados como atos distintos.') + '</div>' + tableHTML(rows[0], rows.slice(1)) + '<p><b>Cobertura da projeção inteira, sem filtro:</b> ' + data.cobertura.edicoes + ' edições · ' + data.cobertura.paginas + ' páginas · ' + esc(dayLabel(data.cobertura.primeira_publicacao)) + ' a ' + esc(dayLabel(data.cobertura.ultima_publicacao)) + '. Histórico parcial desde 01/01/2026.</p><p>Fonte: Diário Oficial do Estado da Paraíba. Não substitui a publicação oficial. Nenhum dado individual integra este relatório.</p>';
+    $('impressao').innerHTML = '<h1>Observatório do Diário Oficial | Painel GEDIV</h1><h2>Consulta pública · ' + esc(pages[page]) + '</h2><p>Projeção gerada em ' + esc(timestamp(data.atualizado_em)) + ' (Brasília) · ' + esc(data.versao_regras) + '</p><p><b>Filtros:</b> ' + esc(describeFilters()) + '</p><div class="print-metrics">' + kpis.map(([key, title]) => '<div>' + esc(title) + '<b>' + (key === 'decisoes' ? esc(M.metricLabel(metric)) : '— · Não verificado') + '</b></div>').join('') + '</div><div class="print-note">' + esc((M.selectionIssue(state) || M.coverageIssue(data, state)) || 'Agregados mensais publicáveis em faixas. A consulta é parcial; dados suprimidos não são zero. Atos nas células podem repetir e não devem ser somados como atos distintos.') + '</div>' + tableHTML(rows[0], rows.slice(1)) + '<p><b>Cobertura da projeção inteira, sem filtro:</b> ' + data.cobertura.edicoes + ' edições · ' + data.cobertura.paginas + ' páginas · ' + esc(dayLabel(data.cobertura.primeira_publicacao)) + ' a ' + esc(dayLabel(data.cobertura.ultima_publicacao)) + '. Histórico parcial desde 01/01/2026.</p><p>Fonte: Diário Oficial do Estado da Paraíba. Não substitui a publicação oficial. Nenhum dado individual integra este relatório.</p>';
   }
 
   async function savePng(button) {
@@ -1160,7 +1186,13 @@
   setTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme:dark)').matches);
   $('tema').onclick = () => setTheme(document.documentElement.dataset.theme !== 'dark');
   $('sobreDados').onclick = showInfo;
-  $('abrirCalendario').onclick = () => { $('inicio').focus(); try { $('inicio').showPicker(); } catch (_) { /* o campo continua utilizável por teclado */ } };
+  $('abrirCalendario').onclick = () => {
+    if (!data || !root.GedivCalendario) return;
+    root.GedivCalendario.abrir({ inicio: state.inicio, fim: state.fim,
+      primeiraData: data.cobertura.primeira_publicacao, ultimaData: data.cobertura.ultima_publicacao,
+      onApply: patch => { if (patch.inicio === patch.fim && patch.inicio) selectedDay = patch.inicio; setFilters(patch); closeMenu(); }
+    });
+  };
 
   $('filtros').addEventListener('change', e => {
     const id = e.target.id;
@@ -1182,7 +1214,7 @@
     setFilters(next); closeMenu();
   };
 
-  $('limpar').onclick = () => { state = M.novoEstado(); query = ''; selected = null; queryPage = tablePage = 0; $('fim').setCustomValidity(''); if (data) render(true); notify('Filtros limpos. Consulta de toda a base disponível.'); };
+  $('limpar').onclick = () => { state = M.novoEstado(); page = 'geral'; query = ''; selected = null; queryPage = tablePage = 0; $('fim').setCustomValidity(''); writeLocation(); if (data) render(true); notify('Filtros limpos. Consulta de toda a base disponível.'); };
 
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-periodo],[data-mes],[data-grupo],[data-sub],[data-serie],[data-medida],[data-consulta],[data-detalhe],[data-paginar],[data-ordenar],[data-ver-todos],[data-exportar-lista],[data-exportar-item],[data-expandir-lista],[data-calendario],[data-dia],[data-mover-mes],[data-ultima-data],[data-kpi],[data-kpi-extra],[data-png],[data-tipo-evolucao],[data-formato-assunto],[data-dim-resultado],[data-remover-filtro],[data-eixo-rapido]');
@@ -1204,7 +1236,7 @@
     else if (d.mes) { monthFilter(d.mes); notify('Mês aplicado: ' + monthLabel(d.mes) + '.'); }
     else if (d.eixoRapido) { setFilters(state.eixo === d.eixoRapido ? { eixo: '', modalidade: '', grupo: '', subcategorias: [] } : d.eixoRapido === 'TEMPO_SERVICO' ? { eixo: 'TEMPO_SERVICO', modalidade: '', grupo: '' } : { eixo: 'PROGRESSAO', subcategorias: [] }); }
     else if (d.removerFiltro) {
-      if (d.removerFiltro === 'todos') { state = M.novoEstado(); query = ''; selected = null; queryPage = tablePage = 0; render(true); }
+      if (d.removerFiltro === 'todos') { $('limpar').click(); }
       else if (d.removerFiltro === 'periodo') setFilters({ inicio: '', fim: '' });
       else if (d.removerFiltro.startsWith('sub:')) { const code = d.removerFiltro.slice(4); setFilters({ subcategorias: state.subcategorias.filter(x => x !== code) }); }
       else setFilters({ [d.removerFiltro]: '' });
@@ -1225,10 +1257,14 @@
     else if (d.exportarItem) exportCsv(visible.filter(c => cellKey(c) === d.exportarItem), true);
     else if (Object.hasOwn(d, 'expandirLista')) showDialog('Todos os agregados da lista', tableHTML(...(() => { const rows = M.cellsToRows(M.sortCells(M.searchCells(visible, query, data.catalogo)), data.catalogo); return [rows[0], rows.slice(1)]; })()));
     else if (d.calendario) { calendarMonth = d.calendario; render(); $('mesCalendario').focus({ preventScroll: true }); }
-    else if (d.dia) { selectedDay = d.dia; if (location.hash === '#dia') { setFilters({ inicio: selectedDay, fim: selectedDay }); } else location.hash = 'dia'; }
+    else if (d.dia) { selectedDay = d.dia; if (page === 'dia') { setFilters({ inicio: selectedDay, fim: selectedDay }); } else location.hash = 'dia'; }
     else if (d.moverMes) { const [y, m] = calendarMonth.split('-').map(Number); const date = new Date(Date.UTC(y, m - 1 + Number(d.moverMes), 1, 12)); if (date.getUTCFullYear() >= 2026 && date.getUTCFullYear() <= 2099) { calendarMonth = date.toISOString().slice(0, 7); render(); } }
     else if (Object.hasOwn(d, 'ultimaData') && data.cobertura.ultima_publicacao) { selectedDay = data.cobertura.ultima_publicacao; setFilters({ inicio: selectedDay, fim: selectedDay }); }
     else if (d.kpi) {
+      if (d.kpi === 'atos') {
+        showDialog('Atos identificados no DOE', '<p>Atos distintos no recorte: <b>' + esc(M.metricLabel(M.qualityMetric(data, state, visible, 'atos'))) + '</b>.</p><p>Um ato pode conter várias decisões e aparecer em várias células. A contagem de resenhas distintas não está disponível. Não some as ocorrências de atos das células.</p><p>Filtros: ' + esc(describeFilters()) + '</p>');
+        return;
+      }
       const entry = kpis.find(x => x[0] === d.kpi);
       if (entry) showDialog(entry[1], '<p>' + esc(entry[2]) + '</p><p>' + (d.kpi === 'decisoes' ? 'Contagem do recorte: <b>' + esc(M.metricLabel(M.decisionMetric(data, state, visible))) + '</b>. O total geral e os agregados publicáveis têm escopos diferentes; células pequenas ficam preservadas.' : 'Este indicador não pode ser calculado a partir dos agregados disponíveis. — significa “Não verificado / não divulgado”, nunca zero presumido.') + '</p><p class="data-note">Período e filtros: ' + esc(describeFilters()) + '</p>');
     }
@@ -1281,7 +1317,7 @@
     root.GEDIVPDF.baixar({
       titulo: 'Observatório do Diário Oficial | Painel GEDIV',
       metadados: [...exportRows().slice(1, 6),
-        ['Recorte', M.selectionIssue(state) || 'Agregados publicáveis parciais. Nenhum dado individual.'],
+        ['Recorte', (M.selectionIssue(state) || M.coverageIssue(data, state)) || 'Agregados publicáveis parciais. Nenhum dado individual.'],
         ['Indicadores', 'Processos, resenhas, deferidos, indeferidos, refeitos e tornados sem efeito: não verificado / não divulgado.'],
         ['Decisões (faixa)', M.metricLabel(M.decisionMetric(data, state, visible))]],
       cabecalho: table[0], linhas: table.slice(1)
@@ -1290,6 +1326,7 @@
   $('imprimir').onclick = () => { if (data) { buildPrint(); window.print(); } };
   window.addEventListener('beforeprint', buildPrint);
   window.addEventListener('hashchange', () => route());
+  window.addEventListener('popstate', () => { state = readLocation(); route(); });
   let resizeTimer;
   window.addEventListener('resize', () => {
     if (!window.matchMedia('(max-width:780px)').matches) closeMenu(false);
@@ -1318,11 +1355,16 @@
       $('mensagemErro').textContent = error.name === 'AbortError' ? 'A leitura demorou além do esperado. Verifique a conexão e tente novamente.' : error instanceof SyntaxError ? 'O arquivo dados.json não pôde ser lido. A projeção precisa estar disponível em JSON público válido.' : error.message;
       $('pagina').innerHTML = '<h2 id="tituloPagina">Dados indisponíveis</h2>' + empty('Consulta temporariamente indisponível', 'Nenhum valor anterior foi mantido como se estivesse atualizado. Use Tentar novamente.');
       $('atualizacao').textContent = 'Dados indisponíveis'; $('situacaoResumo').textContent = 'Falha ao ler a projeção';
+      $('coberturaTopoResumo').textContent = 'Cobertura indisponível'; $('versaoResumo').textContent = '';
       $('exportarCsv').disabled = $('exportarXlsx').disabled = $('exportarPdf').disabled = $('imprimir').disabled = true;
       $('pagina').setAttribute('aria-busy', 'false'); buildPrint();
     } finally { clearTimeout(timeout); loading = false; $('atualizar').disabled = false; }
   }
   $('atualizar').onclick = () => load(true);
   $('tentarNovamente').onclick = () => load(true);
+  const headerObserver = new ResizeObserver(() => {
+    document.documentElement.style.setProperty('--header-height', Math.ceil(document.querySelector('.topbar').getBoundingClientRect().height) + 'px');
+  });
+  headerObserver.observe(document.querySelector('.topbar'));
   route(true); cards(); load();
 })(typeof window !== 'undefined' ? window : globalThis);
